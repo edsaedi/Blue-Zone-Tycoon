@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Blue Zone Tycoon (20-Year Sim)</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0f1a33; --panel2:#0c1730; --border:#223055;
+      --text:#eef2ff; --muted:rgba(238,242,255,.85); --muted2:rgba(238,242,255,.70);
+      --btn:#1f3b7a; --btn2:#182447; --pill:#1b2a53; --pillb:#2f447c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg); color:var(--text)}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;background:var(--panel);border-bottom:1px solid var(--border)}
+    h1{margin:0;font-size:16px;letter-spacing:.3px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .pill{padding:6px 10px;border-radius:999px;background:var(--pill);border:1px solid var(--pillb);font-size:12px}
+    .btn{cursor:pointer;border:none;border-radius:10px;padding:10px 12px;background:var(--btn);color:#fff}
+    .btn.secondary{background:var(--btn2);border:1px solid var(--pillb)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .wrap{display:grid;grid-template-columns: 1.15fr 0.85fr; gap:14px; padding:14px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .card h2{margin:0;font-size:14px}
+    .small{font-size:12px;opacity:.9;line-height:1.35;margin:8px 0 0 0}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .statgrid{display:grid;grid-template-columns: repeat(6, 1fr); gap:10px; margin-top:10px}
+    .stat{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:10px}
+    .stat b{display:block;font-size:11px;opacity:.85}
+    .stat span{font-size:18px}
+    .list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+    .item{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:10px}
+    .item h3{margin:0 0 6px 0;font-size:13px}
+    .item p{margin:0;font-size:12px;opacity:.92;line-height:1.35}
+    .tag{display:inline-block;margin-right:6px;margin-top:6px;padding:4px 8px;border-radius:999px;font-size:11px;background:#12214a;border:1px solid #2a3f74;opacity:.95}
+    .divider{height:1px;background:var(--border);margin:12px 0}
+    textarea{width:100%;min-height:160px;border-radius:12px;border:1px solid var(--border);
+      background:var(--panel2); color:var(--text); padding:12px; resize:vertical}
+    canvas{width:100%;height:180px;background:var(--panel2);border:1px solid var(--border);border-radius:12px}
+    select, input[type="range"]{
+      width:100%;
+      background:var(--panel2);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:10px;
+    }
+    .rangeRow{display:grid;grid-template-columns: 1fr 90px; gap:10px; align-items:center; margin-top:8px}
+    .muted{opacity:.8;font-size:12px}
+    @media (max-width: 950px){ .wrap{grid-template-columns:1fr} .statgrid{grid-template-columns: repeat(3,1fr)} }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Blue Zone Tycoon — 20-Year Simulation</h1>
+  <div class="row">
+    <div class="pill">Year: <b id="yearText">0</b> / 20</div>
+    <div class="pill">Treasury: <b id="moneyText">100</b> LC</div>
+    <button class="btn secondary" id="resetBtn">Reset</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: Build + Policies + Revenue -->
+  <section class="card">
+    <div class="row">
+      <h2>🏗️ Build & Maintain</h2>
+      <button class="btn" id="nextYearBtn">Advance 1 Year</button>
+    </div>
+    <p class="small">
+      Each year you earn revenue, pay upkeep, face events, and your risk meters change.
+      Aim to maximize Life Expectancy while keeping risks low.
+    </p>
+
+    <div class="statgrid">
+      <div class="stat"><b>Life Exp. (LE)</b><span id="leText">76.0</span></div>
+      <div class="stat"><b>Lifestyle (LS)</b><span id="lsText">50</span></div>
+      <div class="stat"><b>Social (SS)</b><span id="ssText">50</span></div>
+      <div class="stat"><b>Environment (ES)</b><span id="esText">50</span></div>
+      <div class="stat"><b>Access/Equity (AS)</b><span id="asText">50</span></div>
+      <div class="stat"><b>Political Support</b><span id="supportText">55</span></div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <h2 style="margin-top:10px;">✅ Features Shop</h2>
+        <p class="small">Buy features (one-time build cost) and keep paying yearly upkeep. If you can’t pay upkeep, effects halve.</p>
+        <div class="list" id="featuresList"></div>
+      </div>
+
+      <div>
+        <h2 style="margin-top:10px;">🏛️ Policies & Revenue</h2>
+        <p class="small">Policies cost support (people dislike rules/taxes), but reduce risks and improve access.</p>
+
+        <div class="item">
+          <h3>Policies (Toggle)</h3>
+          <div class="row" style="margin-top:6px;">
+            <button class="btn secondary" onclick="togglePolicy('subsidies')">Toggle Food Subsidies</button>
+            <span class="pill" id="polSubsidies">OFF</span>
+          </div>
+          <div class="row" style="margin-top:6px;">
+            <button class="btn secondary" onclick="togglePolicy('airReg')">Toggle Air Regulation</button>
+            <span class="pill" id="polAirReg">OFF</span>
+          </div>
+          <div class="row" style="margin-top:6px;">
+            <button class="btn secondary" onclick="togglePolicy('activeTransit')">Toggle Active Transit Incentives</button>
+            <span class="pill" id="polActiveTransit">OFF</span>
+          </div>
+          <p class="small">
+            Subsidies improves benefits for low-income groups.
+            Air regulation reduces pollution growth.
+            Active transit slows sedentary growth and boosts lifestyle.
+          </p>
+        </div>
+
+        <div class="item" style="margin-top:10px;">
+          <h3>Economic Choice (Once per Year)</h3>
+          <p class="muted">Choose how to fund your city this year. Higher money usually means higher risk.</p>
+          <select id="economyChoice">
+            <option value="balanced">Balanced Budget (+8 LC, small risk)</option>
+            <option value="industry">Expand Industry (+16 LC, +pollution)</option>
+            <option value="fastfood">Allow Fast Food Chains (+12 LC, +fast food density)</option>
+            <option value="lowtax">Cut Taxes (+10 LC, +inequality, -support)</option>
+            <option value="tourism">Boost Tourism (+10 LC, +housing pressure)</option>
+          </select>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn secondary" id="lockChoiceBtn">Lock This Choice for the Year</button>
+            <span class="pill" id="choiceLockedText">Not locked</span>
+          </div>
+        </div>
+
+        <div class="item" style="margin-top:10px;">
+          <h3>📈 Life Expectancy Trend</h3>
+          <canvas id="chart" width="900" height="260"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h2>📝 Auto-Generated Prompt Answer</h2>
+    <p class="small">This writes an explanation for at least 3 features, including mechanisms and citations.</p>
+    <textarea id="writeup" readonly></textarea>
+  </section>
+
+  <!-- RIGHT: Risks + Events -->
+  <aside class="card">
+    <div class="row">
+      <h2>⚠️ Risk Meters</h2>
+      <button class="btn secondary" id="randomEventBtn">Trigger Random Event</button>
+    </div>
+    <p class="small">Risks drift upward each year unless you invest in features/policies. High risk reduces LE.</p>
+
+    <div class="item">
+      <h3>Fast Food Density</h3>
+      <div class="rangeRow">
+        <input type="range" id="rFast" min="0" max="10" step="1" disabled />
+        <div class="pill"><b id="rFastV">0</b>/10</div>
+      </div>
+
+      <h3 style="margin-top:10px;">Air Pollution</h3>
+      <div class="rangeRow">
+        <input type="range" id="rPoll" min="0" max="10" step="1" disabled />
+        <div class="pill"><b id="rPollV">0</b>/10</div>
+      </div>
+
+      <h3 style="margin-top:10px;">Inequality</h3>
+      <div class="rangeRow">
+        <input type="range" id="rIneq" min="0" max="10" step="1" disabled />
+        <div class="pill"><b id="rIneqV">0</b>/10</div>
+      </div>
+
+      <h3 style="margin-top:10px;">Sedentary Jobs</h3>
+      <div class="rangeRow">
+        <input type="range" id="rSed" min="0" max="10" step="1" disabled />
+        <div class="pill"><b id="rSedV">0</b>/10</div>
+      </div>
+
+      <h3 style="margin-top:10px;">Housing Pressure</h3>
+      <div class="rangeRow">
+        <input type="range" id="rHouse" min="0" max="10" step="1" disabled />
+        <div class="pill"><b id="rHouseV">0</b>/10</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="item">
+      <h3>🧑‍🤝‍🧑 Population Segments</h3>
+      <p class="small">Some features help everyone; some mainly help higher-income unless you activate Subsidies/Access policies.</p>
+      <div class="row" style="margin-top:8px;">
+        <span class="tag">Low-income 40%</span>
+        <span class="tag">Middle 45%</span>
+        <span class="tag">High 15%</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="item">
+      <h3>🗞️ This Year’s Log</h3>
+      <p class="muted">You’ll see revenue, upkeep failures, events, and changes here.</p>
+      <textarea id="log" readonly style="min-height:220px;"></textarea>
+    </div>
+    <div class="divider"></div>
+
+    <div class="item">
+      <h3>📚 References</h3>
+      <p class="small">Key sources informing the feature mechanisms and environmental risk framing used in this simulator.</p>
+      <ol class="small" style="margin:8px 0 0 18px; padding:0; opacity:.95; line-height:1.45;">
+        <li>Aliberti, S. M., & Capunzo, M. (2025). The Power of Environment: A Comprehensive Review of the Exposome’s Role in Healthy Aging, Longevity, and Preventive Medicine—Lessons from Blue Zones and Cilento. <i>Nutrients, 17</i>(4), 722. <a href="https://doi.org/10.3390/nu17040722" target="_blank" rel="noopener">doi</a></li>
+        <li>Bourne, P. A. (2025). Living Well and Living Long: A Socioeconomic and Demographic Analysis of the Blue Zones. <i>6</i>(2).</li>
+        <li>Carter, E. D. (2015). Making the Blue Zones: Neoliberalism and nudges in public health promotion. <i>Social Science &amp; Medicine, 133</i>, 374–382. <a href="https://doi.org/10.1016/j.socscimed.2015.01.019" target="_blank" rel="noopener">doi</a></li>
+        <li>Evers, C., & Phoenix, C. (2022). Relationships between Recreation and Pollution When Striving for Wellbeing in Blue Spaces. <i>International Journal of Environmental Research and Public Health, 19</i>(7), 4170. <a href="https://doi.org/10.3390/ijerph19074170" target="_blank" rel="noopener">doi</a></li>
+        <li>Marston, H. R., Niles‑Yokum, K., & Silva, P. A. (2021). A Commentary on Blue Zones®: A Critical Review of Age‑Friendly Environments in the 21st Century and Beyond. <i>International Journal of Environmental Research and Public Health, 18</i>(2), 837. <a href="https://doi.org/10.3390/ijerph18020837" target="_blank" rel="noopener">doi</a></li>
+        <li>Najafi, P., & Mohammadi, M. (2024). Redefining Age‑Friendly Neighbourhoods: Translating the Promises of Blue Zones for Contemporary Urban Environments. <i>International Journal of Environmental Research and Public Health, 21</i>(3), 365. <a href="https://doi.org/10.3390/ijerph21030365" target="_blank" rel="noopener">doi</a></li>
+        <li>Pes, G. M., Dore, M. P., Tsofliou, F., & Poulain, M. (2022). Diet and longevity in the Blue Zones: A set‑and‑forget issue? <i>Maturitas, 164</i>, 31–37. <a href="https://doi.org/10.1016/j.maturitas.2022.06.004" target="_blank" rel="noopener">doi</a></li>
+      </ol>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+/* =========================================================
+   Blue Zone Tycoon — single-file, no libraries
+   ========================================================= */
+
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const rnd = (min, max) => Math.random() * (max - min) + min;
+
+// --- GAME DATA: replace evidence strings with your scientific evidence later ---
+const FEATURES = [
+  {
+    id: "walkable",
+    name: "Walkable Streets + Active Transport",
+    build: 30, upkeep: 4,
+    coverage: { low: 0.70, mid: 0.80, high: 0.90 }, // % of each group reached
+    effects: { LS: +8, SS: +2, ES: +1, AS: 0 },
+    riskImpactPerYear: { rSed: -0.8, rFast: -0.2 },
+    evidence: "Increases daily movement (NEAT), reduces CVD risk, and supports incidental social contact. [Najafi & Mohammadi, 2024; Marston et al., 2021]"
+  },
+  {
+    id: "plants",
+    name: "Plant-Forward Food System",
+    build: 28, upkeep: 5,
+    coverage: { low: 0.35, mid: 0.55, high: 0.70 }, // subsidies can raise low coverage
+    effects: { LS: +7, SS: 0, ES: 0, AS: +1 },
+    riskImpactPerYear: { rFast: -0.6 },
+    evidence: "Higher fiber and lower saturated fat reduce LDL and inflammation; improves metabolic markers. [Pes et al., 2022; Aliberti & Capunzo, 2025]"
+  },
+  {
+    id: "portion",
+    name: "Portion Norms + Food Culture",
+    build: 12, upkeep: 2,
+    coverage: { low: 0.55, mid: 0.60, high: 0.60 },
+    effects: { LS: +4, SS: 0, ES: 0, AS: 0 },
+    riskImpactPerYear: { rFast: -0.3 },
+    evidence: "Moderation decreases chronic overconsumption and improves insulin sensitivity. [Pes et al., 2022]"
+  },
+  {
+    id: "social",
+    name: "Community Rituals + Social Networks",
+    build: 22, upkeep: 3,
+    coverage: { low: 0.75, mid: 0.80, high: 0.65 },
+    effects: { LS: 0, SS: +10, ES: 0, AS: 0 },
+    riskImpactPerYear: { rIneq: -0.2 },
+    evidence: "Social connection buffers stress, improves mental health, and correlates with lower mortality. [Bourne, 2025; Carter, 2015]"
+  },
+  {
+    id: "greenspace",
+    name: "Green Space + Nature Access",
+    build: 24, upkeep: 3,
+    coverage: { low: 0.60, mid: 0.70, high: 0.80 },
+    effects: { LS: +2, SS: +2, ES: +8, AS: 0 },
+    riskImpactPerYear: { rPoll: -0.4, rHouse: -0.2 },
+    evidence: "Nature exposure lowers stress biomarkers and supports physical activity and mood regulation. [Evers & Phoenix, 2022; Aliberti & Capunzo, 2025]"
+  },
+  {
+    id: "clinics",
+    name: "Preventive Clinics + Screening Access",
+    build: 26, upkeep: 6,
+    coverage: { low: 0.55, mid: 0.65, high: 0.70 },
+    effects: { LS: +1, SS: 0, ES: 0, AS: +10 },
+    riskImpactPerYear: { },
+    evidence: "Improves early detection, chronic disease management, and access equity. [Aliberti & Capunzo, 2025]"
+  },
+  {
+    id: "cycling",
+    name: "Protected Bike Network",
+    build: 18, upkeep: 3,
+    coverage: { low: 0.60, mid: 0.70, high: 0.80 },
+    effects: { LS: +6, SS: 0, ES: +1, AS: 0 },
+    riskImpactPerYear: { rSed: -0.6 },
+    evidence: "Makes active transportation safer, increasing routine activity and lowering cardiovascular risk. [Najafi & Mohammadi, 2024; Marston et al., 2021]"
+  },
+  {
+    id: "housing",
+    name: "Affordable Housing + Anti-Displacement",
+    build: 20, upkeep: 4,
+    coverage: { low: 0.80, mid: 0.60, high: 0.20 },
+    effects: { LS: 0, SS: +2, ES: 0, AS: +8 },
+    riskImpactPerYear: { rHouse: -0.9, rIneq: -0.3 },
+    evidence: "Stabilizes housing, reduces stress, and protects access to resources. [Bourne, 2025; Carter, 2015]"
+  }
+];
+
+const SYNERGIES = [
+  {
+    name: "Move + Connect",
+    requires: ["walkable","social"],
+    bonus: { LS:+2, SS:+3, ES:0, AS:0 }
+  },
+  {
+    name: "Food System Stack",
+    requires: ["plants","portion"],
+    bonus: { LS:+3, SS:0, ES:0, AS:+1 }
+  },
+  {
+    name: "Green Mobility",
+    requires: ["greenspace","cycling"],
+    bonus: { LS:+2, SS:+1, ES:+2, AS:0 }
+  }
+];
+
+const EVENTS = [
+  {
+    name: "Heat Wave",
+    text: "A major heat wave hits. Without green space, stress and cardiovascular strain rise.",
+    apply: (st) => {
+      const hasGreen = st.features.has("greenspace");
+      st.stats.ES += hasGreen ? -2 : -8;
+      st.support += hasGreen ? -1 : -4;
+      st.risks.rHouse += hasGreen ? 0.2 : 0.5;
+      return hasGreen ? "Green space blunted the impact." : "No green buffers: ES dropped sharply.";
+    }
+  },
+  {
+    name: "Flu Outbreak",
+    text: "A flu outbreak increases mortality risk, especially where access is low.",
+    apply: (st) => {
+      const hasClinics = st.features.has("clinics");
+      st.stats.AS += hasClinics ? +1 : -4;
+      st.support += hasClinics ? 0 : -2;
+      st.stats.SS += hasClinics ? 0 : -1;
+      return hasClinics ? "Clinics improved prevention and response." : "Limited prevention worsened access outcomes.";
+    }
+  },
+  {
+    name: "Housing Crunch",
+    text: "Housing demand spikes. If housing policy is weak, displacement stress rises.",
+    apply: (st) => {
+      const hasHousing = st.features.has("housing");
+      st.risks.rHouse += hasHousing ? -0.3 : +1.2;
+      st.stats.AS += hasHousing ? +1 : -3;
+      st.support += hasHousing ? 0 : -3;
+      return hasHousing ? "Affordable housing reduced displacement." : "Housing pressure surged.";
+    }
+  },
+  {
+    name: "Corporate Lobbying Push",
+    text: "Businesses push back on regulations. If you have Air Regulation, support takes a hit.",
+    apply: (st) => {
+      if (st.policies.airReg) {
+        st.support -= 5;
+        st.money += 4; // compromise donations / economic tailwind
+        return "Air regulation triggered pushback: -support, +some money.";
+      }
+      st.support -= 1;
+      return "Minor political pressure.";
+    }
+  },
+  {
+    name: "Community Movement",
+    text: "Grassroots volunteers organize walking clubs and potlucks.",
+    apply: (st) => {
+      st.stats.SS += 4;
+      st.stats.LS += 2;
+      st.support += 3;
+      return "Social cohesion increased.";
+    }
+  },
+  {
+    name: "Wildfire Smoke",
+    text: "Wildfire smoke worsens air quality temporarily.",
+    apply: (st) => {
+      st.stats.ES -= 6;
+      st.risks.rPoll += 1.0;
+      if (st.policies.airReg) { st.stats.ES += 2; st.risks.rPoll -= 0.3; }
+      return st.policies.airReg ? "Air regulation mitigated some exposure." : "Air quality worsened significantly.";
+    }
+  },
+  {
+    name: "School Health Initiative",
+    text: "Schools adopt daily activity + nutrition education.",
+    apply: (st) => {
+      st.stats.LS += 3;
+      st.stats.AS += 1;
+      st.support += 2;
+      st.risks.rSed -= 0.2;
+      return "Long-run lifestyle habits strengthened.";
+    }
+  }
+];
+
+// --- CORE STATE ---
+const INIT = () => ({
+  year: 0,
+  maxYears: 20,
+  money: 100,
+  le: 76.0,
+  stats: { LS: 50, SS: 50, ES: 50, AS: 50 },
+  support: 55,
+  policies: { subsidies:false, airReg:false, activeTransit:false },
+  features: new Set(),
+  lockedChoice: null, // economy choice locked for current year
+  log: [],
+  // risk meters 0..10
+  risks: { rFast: 3.0, rPoll: 2.5, rIneq: 3.5, rSed: 3.0, rHouse: 2.0 },
+  leHistory: [76.0]
+});
+
+let state = INIT();
+
+// --- UI shortcuts ---
+const $ = (id) => document.getElementById(id);
+
+function logLine(s){
+  state.log.push(s);
+  // keep last ~18 lines visible
+  if (state.log.length > 60) state.log = state.log.slice(state.log.length - 60);
+  $("log").value = state.log.join("\n");
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+// --- Coverage weighting using population segments
+const POP = { low:0.40, mid:0.45, high:0.15 };
+
+function effectiveCoverage(feature, st){
+  // Subsidies increases low-income coverage for food-related features
+  let low = feature.coverage.low;
+  let mid = feature.coverage.mid;
+  let high = feature.coverage.high;
+
+  const foodish = (feature.id === "plants" || feature.id === "portion");
+  if (st.policies.subsidies && foodish) low = clamp(low + 0.30, 0, 1);
+
+  // Active transit increases coverage effectiveness of mobility features
+  const mobility = (feature.id === "walkable" || feature.id === "cycling");
+  if (st.policies.activeTransit && mobility){
+    low = clamp(low + 0.10, 0, 1);
+    mid = clamp(mid + 0.10, 0, 1);
+  }
+
+  // Weighted by population
+  return POP.low*low + POP.mid*mid + POP.high*high; // 0..1
+}
+
+function featureFunded(feature, st){
+  // If you can't pay upkeep, it's underfunded this year.
+  // We'll decide during yearly tick (after revenue).
+  return true;
+}
+
+// --- Rendering ---
+function render(){
+  $("yearText").textContent = state.year.toString();
+  $("moneyText").textContent = Math.round(state.money).toString();
+  $("leText").textContent = state.le.toFixed(1);
+  $("lsText").textContent = Math.round(state.stats.LS);
+  $("ssText").textContent = Math.round(state.stats.SS);
+  $("esText").textContent = Math.round(state.stats.ES);
+  $("asText").textContent = Math.round(state.stats.AS);
+  $("supportText").textContent = Math.round(state.support);
+
+  // policies
+  $("polSubsidies").textContent = state.policies.subsidies ? "ON" : "OFF";
+  $("polAirReg").textContent = state.policies.airReg ? "ON" : "OFF";
+  $("polActiveTransit").textContent = state.policies.activeTransit ? "ON" : "OFF";
+
+  // risks sliders
+  setRiskUI("rFast", state.risks.rFast);
+  setRiskUI("rPoll", state.risks.rPoll);
+  setRiskUI("rIneq", state.risks.rIneq);
+  setRiskUI("rSed", state.risks.rSed);
+  setRiskUI("rHouse", state.risks.rHouse);
+
+  // features list
+  $("featuresList").innerHTML = FEATURES.map(f => {
+    const owned = state.features.has(f.id);
+    const canBuy = state.money >= f.build;
+    const tags = [
+      `<span class="tag">Build ${f.build} LC</span>`,
+      `<span class="tag">Upkeep ${f.upkeep}/yr</span>`,
+      `<span class="tag">Coverage ${Math.round(effectiveCoverage(f, state)*100)}%</span>`
+    ].join("");
+
+    const eff = `LS ${fmtSigned(f.effects.LS)}, SS ${fmtSigned(f.effects.SS)}, ES ${fmtSigned(f.effects.ES)}, AS ${fmtSigned(f.effects.AS)}`;
+    const riskEff = Object.keys(f.riskImpactPerYear||{}).length
+      ? `Risk drift: ${Object.entries(f.riskImpactPerYear).map(([k,v])=> `${k.replace("r","")} ${fmtSigned(v)}/yr`).join(", ")}`
+      : `Risk drift: none`;
+
+    return `
+      <div class="item">
+        <div class="row">
+          <h3>${f.name}</h3>
+          <button class="btn" ${(!owned && !canBuy) ? "disabled" : ""} onclick="toggleFeature('${f.id}')">
+            ${owned ? "Sell (no refund)" : `Build (-${f.build})`}
+          </button>
+        </div>
+        <p><b>Effects:</b> ${eff}</p>
+        <p><b>${riskEff}</b></p>
+        <p><b>Mechanism/Evidence:</b> ${f.evidence}</p>
+        <div>${tags}</div>
+      </div>
+    `;
+  }).join("");
+
+  // economy lock text
+  $("choiceLockedText").textContent = state.lockedChoice ? `Locked: ${state.lockedChoice}` : "Not locked";
+
+  // writeup
+  $("writeup").value = generateWriteup();
+
+  // buttons enabled/disabled
+  $("nextYearBtn").disabled = (state.year >= state.maxYears);
+  drawChart();
+}
+
+function fmtSigned(x){
+  const n = Number(x || 0);
+  return (n>=0? `+${n}` : `${n}`);
+}
+
+function setRiskUI(id, val){
+  const v = clamp(val, 0, 10);
+  $(id).value = v;
+  $(id+"V").textContent = v.toFixed(1);
+}
+
+// --- Actions exposed to window ---
+window.toggleFeature = function(id){
+  const f = FEATURES.find(x => x.id === id);
+  if (!f) return;
+
+  if (state.features.has(id)){
+    state.features.delete(id);
+    logLine(`Sold feature: ${f.name} (no refund).`);
+  } else {
+    if (state.money < f.build) return;
+    state.money -= f.build;
+    state.features.add(id);
+    logLine(`Built feature: ${f.name} (-${f.build} LC).`);
+  }
+  render();
+};
+
+window.togglePolicy = function(key){
+  // Basic political dynamics: policies cost support to activate, regain a bit when turning off.
+  // Also small yearly upkeep to enforce is baked into effects during tick via risk changes.
+  const on = state.policies[key];
+  if (!on){
+    // activation costs support; if support too low, you can’t pass it
+    const cost = (key === "airReg") ? 6 : (key === "subsidies") ? 5 : 4;
+    if (state.support < 30){
+      logLine(`Policy blocked: Support too low to activate ${key}.`);
+      render();
+      return;
+    }
+    state.support -= cost;
+    state.policies[key] = true;
+    logLine(`Policy ON: ${key} (Support -${cost}).`);
+  } else {
+    const refund = (key === "airReg") ? 2 : 2;
+    state.support += refund;
+    state.policies[key] = false;
+    logLine(`Policy OFF: ${key} (Support +${refund}).`);
+  }
+  state.support = clamp(state.support, 0, 100);
+  render();
+};
+
+// --- Economy choice lock ---
+$("lockChoiceBtn").addEventListener("click", () => {
+  if (state.lockedChoice){
+    logLine("Economy choice already locked for this year.");
+    return;
+  }
+  state.lockedChoice = $("economyChoice").value;
+  logLine(`Locked economy choice: ${state.lockedChoice}.`);
+  render();
+});
+
+// --- Random event button ---
+$("randomEventBtn").addEventListener("click", () => {
+  triggerEvent(true);
+  render();
+});
+
+// --- Reset ---
+$("resetBtn").addEventListener("click", () => {
+  state = INIT();
+  $("economyChoice").value = "balanced";
+  $("choiceLockedText").textContent = "Not locked";
+  $("log").value = "";
+  render();
+});
+
+// --- Next year ---
+$("nextYearBtn").addEventListener("click", () => nextYear());
+
+// =========================================================
+// YEARLY SIMULATION LOGIC
+// =========================================================
+function nextYear(){
+  if (state.year >= state.maxYears) return;
+
+  state.year += 1;
+  logLine(`\n=== YEAR ${state.year} ===`);
+
+  // 1) Revenue phase
+  const choice = state.lockedChoice || "balanced";
+  applyEconomyChoice(choice);
+
+  // 2) Upkeep phase
+  const underfunded = payUpkeep();
+
+  // 3) Apply feature effects (scaled by coverage; halved if underfunded)
+  applyFeatures(underfunded);
+
+  // 4) Apply synergy bonuses
+  applySynergies();
+
+  // 5) Risk drift (baseline + economy + policies + features)
+  applyRiskDrift(underfunded);
+
+  // 6) Random event (1 per year)
+  triggerEvent(false);
+
+  // 7) Clamp stats + compute Life Expectancy update
+  normalizeStats();
+  updateLifeExpectancy();
+
+  // 8) End-of-year housekeeping
+  state.lockedChoice = null; // must choose each year
+  $("choiceLockedText").textContent = "Not locked";
+
+  render();
+
+  // Show end condition hint
+  if (state.year === state.maxYears){
+    logLine(`\n=== SIM COMPLETE ===\nFinal LE: ${state.le.toFixed(1)} years.`);
+  }
+}
+
+function applyEconomyChoice(choice){
+  // Money and risk/support tradeoffs
+  // (These are intentionally gamey and easy to tweak.)
+  switch(choice){
+    case "industry":
+      state.money += 16;
+      state.risks.rPoll += 0.8;
+      state.support -= 1;
+      logLine("Economy: Industry expansion (+16 LC, +Pollution, -Support).");
+      break;
+    case "fastfood":
+      state.money += 12;
+      state.risks.rFast += 0.9;
+      state.support -= 1;
+      logLine("Economy: Fast food chains (+12 LC, +Fast Food Density, -Support).");
+      break;
+    case "lowtax":
+      state.money += 10;
+      state.risks.rIneq += 0.8;
+      state.support -= 3;
+      logLine("Economy: Tax cuts (+10 LC, +Inequality, -Support).");
+      break;
+    case "tourism":
+      state.money += 10;
+      state.risks.rHouse += 0.7;
+      state.support += 1;
+      logLine("Economy: Tourism push (+10 LC, +Housing Pressure, +Support).");
+      break;
+    case "balanced":
+    default:
+      state.money += 8;
+      state.risks.rFast += 0.2;
+      state.risks.rPoll += 0.1;
+      logLine("Economy: Balanced budget (+8 LC, small risk drift).");
+      break;
+  }
+  state.support = clamp(state.support, 0, 100);
+  state.money = Math.round(state.money);
+}
+
+function payUpkeep(){
+  // Pay upkeep for each built feature. If insufficient money, mark underfunded for that feature.
+  const underfunded = new Set();
+  let totalUpkeep = 0;
+  const built = FEATURES.filter(f => state.features.has(f.id));
+
+  for (const f of built) totalUpkeep += f.upkeep;
+
+  if (built.length === 0){
+    logLine("Upkeep: none (no features built).");
+    return underfunded;
+  }
+
+  // Attempt to pay each upkeep; if treasury too low, that feature becomes underfunded
+  for (const f of built){
+    if (state.money >= f.upkeep){
+      state.money -= f.upkeep;
+    } else {
+      underfunded.add(f.id);
+    }
+  }
+
+  const paid = totalUpkeep - [...underfunded].reduce((acc,id)=>{
+    const f = FEATURES.find(x=>x.id===id); return acc + (f?f.upkeep:0);
+  },0);
+
+  if (underfunded.size > 0){
+    state.support -= 2 * underfunded.size; // public frustration
+    logLine(`Upkeep: paid ${paid} LC. Underfunded: ${[...underfunded].join(", ")} (effects halved, -support).`);
+  } else {
+    logLine(`Upkeep: paid ${totalUpkeep} LC (all features funded).`);
+  }
+
+  state.support = clamp(state.support, 0, 100);
+  return underfunded;
+}
+
+function applyFeatures(underfunded){
+  const built = FEATURES.filter(f => state.features.has(f.id));
+  if (built.length === 0) return;
+
+  for (const f of built){
+    const cov = effectiveCoverage(f, state); // 0..1
+    const funded = !underfunded.has(f.id);
+    const scale = funded ? 1.0 : 0.5;
+
+    // Apply stat effects scaled by coverage
+    state.stats.LS += f.effects.LS * cov * scale;
+    state.stats.SS += f.effects.SS * cov * scale;
+    state.stats.ES += f.effects.ES * cov * scale;
+    state.stats.AS += f.effects.AS * cov * scale;
+
+    // Access policy slightly boosts AS if clinics exist
+    if (state.policies.subsidies && (f.id === "clinics" || f.id === "housing")){
+      state.stats.AS += 0.4 * scale;
+    }
+  }
+
+  // Active transit policy adds tiny LS each year
+  if (state.policies.activeTransit){
+    state.stats.LS += 1.2;
+    state.support -= 0.5; // annoyance at bike lanes / changes
+  }
+
+  // Air regulation policy costs a bit each year
+  if (state.policies.airReg){
+    state.money -= 2;
+    state.support -= 0.5;
+    logLine("Policy enforcement: Air regulation cost -2 LC, small support friction.");
+  }
+
+  state.money = Math.max(0, state.money);
+  state.support = clamp(state.support, 0, 100);
+}
+
+function applySynergies(){
+  for (const s of SYNERGIES){
+    if (s.requires.every(id => state.features.has(id))){
+      state.stats.LS += s.bonus.LS;
+      state.stats.SS += s.bonus.SS;
+      state.stats.ES += s.bonus.ES;
+      state.stats.AS += s.bonus.AS;
+      logLine(`Synergy triggered: ${s.name} (${fmtSigned(s.bonus.LS)} LS, ${fmtSigned(s.bonus.SS)} SS, ${fmtSigned(s.bonus.ES)} ES, ${fmtSigned(s.bonus.AS)} AS).`);
+    }
+  }
+}
+
+function applyRiskDrift(underfunded){
+  // Baseline risk drift upward each year
+  state.risks.rFast += 0.25;
+  state.risks.rPoll += 0.20;
+  state.risks.rIneq += 0.20;
+  state.risks.rSed  += 0.25;
+  state.risks.rHouse+= 0.20;
+
+  // Policies reduce drift
+  if (state.policies.airReg) state.risks.rPoll -= 0.60;
+  if (state.policies.subsidies) state.risks.rFast -= 0.25;
+  if (state.policies.activeTransit) state.risks.rSed -= 0.35;
+
+  // Features reduce drift (if underfunded, half impact)
+  for (const f of FEATURES){
+    if (!state.features.has(f.id)) continue;
+    const funded = !underfunded.has(f.id);
+    const scale = funded ? 1.0 : 0.5;
+    for (const [rk, dv] of Object.entries(f.riskImpactPerYear || {})){
+      state.risks[rk] += dv * scale;
+    }
+  }
+
+  // Inequality increases housing pressure and reduces support over time
+  state.risks.rHouse += 0.06 * state.risks.rIneq;
+  state.support -= 0.35 * (state.risks.rIneq - 3); // above ~3 hurts
+
+  // Clamp risks and support
+  for (const k of Object.keys(state.risks)){
+    state.risks[k] = clamp(state.risks[k], 0, 10);
+  }
+  state.support = clamp(state.support, 0, 100);
+}
+
+function triggerEvent(force){
+  // One event per year automatically, plus optional manual trigger.
+  const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  logLine(`Event: ${event.name} — ${event.text}`);
+  const outcome = event.apply(state);
+  logLine(`→ Outcome: ${outcome}`);
+
+  // Clamp after event
+  for (const k of Object.keys(state.risks)){
+    state.risks[k] = clamp(state.risks[k], 0, 10);
+  }
+  normalizeStats();
+}
+
+function normalizeStats(){
+  state.stats.LS = clamp(state.stats.LS, 0, 100);
+  state.stats.SS = clamp(state.stats.SS, 0, 100);
+  state.stats.ES = clamp(state.stats.ES, 0, 100);
+  state.stats.AS = clamp(state.stats.AS, 0, 100);
+  state.support = clamp(state.support, 0, 100);
+}
+
+function updateLifeExpectancy(){
+  // Convert stats to a "good index" and risks to a "bad index"
+  const good = (state.stats.LS + state.stats.SS + state.stats.ES + state.stats.AS) / 400; // 0..1
+  const bad = (state.risks.rFast + state.risks.rPoll + state.risks.rIneq + state.risks.rSed + state.risks.rHouse) / 50; // 0..1
+
+  // Support matters: low support weakens implementation
+  const supportFactor = clamp(state.support / 60, 0.6, 1.1); // 0.6..1.1
+
+  // Random shocks: small year-to-year noise
+  const shock = rnd(-0.18, 0.18);
+
+  // LE change:
+  // - benefits scale with good, penalties scale with bad, and low support reduces benefit
+  const dLE =
+    (0.55 * good * supportFactor)  // better environment/lifestyle raises LE
+    - (0.70 * bad)                 // risks lower LE
+    + shock;
+
+  // Additional penalty if any risk is extreme
+  const extreme = Object.values(state.risks).some(v => v >= 8.5);
+  const extremePenalty = extreme ? 0.12 : 0;
+  const dLE2 = dLE - extremePenalty;
+
+  state.le = clamp(state.le + dLE2, 60, 95);
+  state.leHistory.push(state.le);
+
+  // Support drift: people happier if LE improves and stats are high
+  if (dLE2 > 0.05) state.support += 1.2;
+  if (dLE2 < -0.10) state.support -= 1.5;
+  state.support = clamp(state.support, 0, 100);
+
+  logLine(`LE update: ΔLE=${dLE2.toFixed(2)} → LE=${state.le.toFixed(1)} (Good=${good.toFixed(2)}, Bad=${bad.toFixed(2)}, Support=${Math.round(state.support)}).`);
+}
+
+function generateWriteup(){
+  const chosen = FEATURES.filter(f => state.features.has(f.id));
+  const top3 = chosen.slice(0,3);
+
+  const promptOk = chosen.length >= 3
+    ? "✅ You have at least 3 Blue Zone features selected, satisfying the prompt.\n"
+    : "⚠️ Select at least 3 features to satisfy the prompt.\n";
+
+  const featureText = top3.length
+    ? top3.map((f,i)=> {
+        const cov = Math.round(effectiveCoverage(f, state)*100);
+        return `${i+1}. ${f.name}
+   Mechanism/Rationale: ${f.evidence}
+   Implementation detail: ${cov}% coverage; upkeep ${f.upkeep}/year to sustain impact.`;
+      }).join("\n\n")
+    : "(No features selected yet.)";
+
+  const riskSummary =
+    `Current risks (0–10):
+- Fast food density: ${state.risks.rFast.toFixed(1)}
+- Air pollution: ${state.risks.rPoll.toFixed(1)}
+- Inequality: ${state.risks.rIneq.toFixed(1)}
+- Sedentary jobs: ${state.risks.rSed.toFixed(1)}
+- Housing pressure: ${state.risks.rHouse.toFixed(1)}`;
+
+  const policySummary =
+    `Policies:
+- Food subsidies: ${state.policies.subsidies ? "ON" : "OFF"}
+- Air regulation: ${state.policies.airReg ? "ON" : "OFF"}
+- Active transit incentives: ${state.policies.activeTransit ? "ON" : "OFF"}`;
+
+  return `${promptOk}
+DESIGN YOUR OWN BLUE ZONE — SUMMARY
+----------------------------------
+Top features (3 shown):
+${featureText}
+
+${policySummary}
+
+${riskSummary}
+
+Outcomes (end of Year ${state.year}):
+- Life Expectancy (LE): ${state.le.toFixed(1)}
+- Lifestyle (LS): ${Math.round(state.stats.LS)}
+- Social (SS): ${Math.round(state.stats.SS)}
+- Environment (ES): ${Math.round(state.stats.ES)}
+- Access/Equity (AS): ${Math.round(state.stats.AS)}
+
+
+`;
+}
+
+// =========================================================
+// CHART (simple canvas line chart for LE)
+// =========================================================
+function drawChart(){
+  const canvas = $("chart");
+  const ctx = canvas.getContext("2d");
+
+  // Clear
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const pad = 28;
+  const W = canvas.width, H = canvas.height;
+  const xs = state.leHistory;
+
+  // Determine y range (nice bounds)
+  const minY = Math.floor(Math.min(...xs) - 1);
+  const maxY = Math.ceil(Math.max(...xs) + 1);
+
+  // axes
+  ctx.globalAlpha = 0.9;
+  ctx.strokeStyle = "rgba(238,242,255,0.35)";
+  ctx.lineWidth = 1;
+
+  // Y grid lines
+  const lines = 4;
+  for (let i=0;i<=lines;i++){
+    const y = pad + (H-2*pad)* (i/lines);
+    ctx.beginPath();
+    ctx.moveTo(pad,y);
+    ctx.lineTo(W-pad,y);
+    ctx.stroke();
+
+    const val = (maxY - (maxY-minY)*(i/lines)).toFixed(0);
+    ctx.fillStyle = "rgba(238,242,255,0.75)";
+    ctx.font = "12px Arial";
+    ctx.fillText(val, 6, y+4);
+  }
+
+  // X axis labels
+  ctx.fillStyle = "rgba(238,242,255,0.75)";
+  ctx.font = "12px Arial";
+  ctx.fillText("Year", W/2 - 14, H-6);
+
+  // line
+  const n = xs.length;
+  if (n < 2) return;
+
+  const xTo = (i) => pad + (W-2*pad) * (i/(state.maxYears));
+  const yTo = (v) => pad + (H-2*pad) * ((maxY - v)/(maxY - minY || 1));
+
+  // Path
+  ctx.strokeStyle = "rgba(238,242,255,0.9)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(xTo(0), yTo(xs[0]));
+  for (let i=1;i<n;i++){
+    ctx.lineTo(xTo(i), yTo(xs[i]));
+  }
+  ctx.stroke();
+
+  // points (last)
+  const lx = xTo(n-1), ly = yTo(xs[n-1]);
+  ctx.fillStyle = "rgba(238,242,255,0.95)";
+  ctx.beginPath();
+  ctx.arc(lx, ly, 4, 0, Math.PI*2);
+  ctx.fill();
+
+  // title
+  ctx.fillStyle = "rgba(238,242,255,0.9)";
+  ctx.font = "13px Arial";
+  ctx.fillText("Life Expectancy (LE) over time", pad, 18);
+}
+
+// =========================================================
+// INIT
+// =========================================================
+render();
+logLine("Welcome! Build features, set policies, lock an economic choice, then advance years.");
+</script>
+</body>
+</html>
